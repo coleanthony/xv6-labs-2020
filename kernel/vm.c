@@ -441,18 +441,18 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   }
 }
 
-/*
 void vmprint_(pagetable_t pagetable,int level){
+  //PTE_V是用来判断页表项是否有效
   char *prev[]={"..",".. ..",".. .. .."};
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
     if(pte & PTE_V){
       printf("%s",prev[level-1]);
-    }
-    uint64 child = PTE2PA(pte);
-    printf("%d: pte %p pa %p",level,pte,child);
-    if (level!=3){
-      vmprint_((pagetable_t)child,level+1);
+      uint64 child = PTE2PA(pte);
+      printf("%d: pte %p pa %p\n",i,pte,child);
+      if (level<3){
+        vmprint_((pagetable_t)child,level+1);
+      }
     }
   }
 }
@@ -460,4 +460,4 @@ void vmprint_(pagetable_t pagetable,int level){
 void vmprint(pagetable_t pagetable){
   printf("page table %p\n",pagetable);
   vmprint_(pagetable,1);
-}*/
+}
