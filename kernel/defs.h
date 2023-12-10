@@ -92,6 +92,7 @@ int             fork(void);
 int             growproc(int);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
+void            proc_freepagetable_kn(pagetable_t);
 int             kill(int);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
@@ -159,9 +160,12 @@ int             uartgetc(void);
 
 // vm.c
 void            kvminit(void);
+pagetable_t     kn_kvminit(void);
+void            kn_kvminithart(pagetable_t);
 void            kvminithart(void);
 uint64          kvmpa(uint64);
 void            kvmmap(uint64, uint64, uint64, int);
+void            kn_kvmmap(pagetable_t, uint64, uint64, uint64, int);
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
 pagetable_t     uvmcreate(void);
 void            uvminit(pagetable_t, uchar *, uint);
@@ -180,6 +184,7 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            vmprint(pagetable_t);
 void            vmprint_(pagetable_t,int);
+void             usermaptokvmcopy(pagetable_t,pagetable_t,uint64,uint64);
 
 // plic.c
 void            plicinit(void);
@@ -203,6 +208,9 @@ void            statsinc(void);
 
 // sprintf.c
 int             snprintf(char*, int, char*, ...);
+
+int copyin_new(pagetable_t, char*, uint64 , uint64);
+int copyinstr_new(pagetable_t, char*, uint64, uint64);
 
 #ifdef LAB_NET
 // pci.c
