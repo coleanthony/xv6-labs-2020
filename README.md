@@ -28,3 +28,4 @@ I wrote a brief report on my implementation for each lab in Chinese.
 - [Lab Syscall](./reports/lab2.md)
 - [Lab Pgtbl](./reports/lab3.md)
 - [Lab Trap](./reports/lab4.md)
+- [Lab Lazy](./reports/lab5.md)
