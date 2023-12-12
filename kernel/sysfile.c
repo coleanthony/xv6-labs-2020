@@ -484,3 +484,30 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_sigreturn(void){
+  memmove(myproc()->trapframe,myproc()->trapframe_cpy,sizeof(struct trapframe));
+  myproc()->in_alarm=0;
+  return 0;
+}
+
+uint64
+sys_sigalarm(void){
+  struct proc *p = myproc();
+  int interval;
+  if (argint(0,&interval)<0)
+  {
+    return -1;
+  }
+  uint64 h;
+  if (argaddr(1,&h)<0)
+  {
+    return -1;
+  }
+  p->alarminterval=interval;
+  p->handler=(void(*)())h;
+  p->tickacount=0;
+
+  return 0;
+}
