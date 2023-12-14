@@ -29,3 +29,4 @@ I wrote a brief report on my implementation for each lab in Chinese.
 - [Lab Pgtbl](./reports/lab3.md)
 - [Lab Trap](./reports/lab4.md)
 - [Lab Lazy](./reports/lab5.md)
+- [Lab COW](./reports/lab6.md)
