@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sleeplock.h"
+#include "fcntl.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,12 +71,75 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause()==13||r_scause()==15){
+    uint64 va=r_stval();
+    struct proc* p=myproc();
+    if (va>MAXVA||va>p->sz){
+      p->killed=1;
+      goto bad;
+    }
+    int i;
+    for (i = 0; i < NVMA; i++){
+      if (p->vmas[i].used&&p->vmas[i].addr<=va&&va<=p->vmas[i].addr+ p->vmas[i].len - 1){
+        break;
+      }
+    }
+    if (i==NVMA){
+      p->killed=1;
+      goto bad;
+    }
+    int pte_flags=PTE_U;
+    if (p->vmas[i].prot&PROT_READ)  pte_flags|=PTE_R;
+    if (p->vmas[i].prot&PROT_WRITE) pte_flags|=PTE_W;
+    if (p->vmas[i].prot&PROT_EXEC)  pte_flags|=PTE_X;
+    
+    struct file* vf=p->vmas[i].vfile;
+    // cause == 13：读取访问导致的页面故障（Load Page Fault）
+    // cause == 15：写入访问导致的页面故障（Store Page Fault）
+    if(r_scause() == 13 && vf->readable == 0){
+      p->killed=1;
+      goto bad;
+    }
+    if(r_scause() == 15 && vf->writable == 0){
+      p->killed=1;
+      goto bad;
+    }
+
+    void *pa=kalloc();
+    if (pa==0){
+        p->killed=1;
+        goto bad;
+    }
+    
+    memset(pa,0,PGSIZE);
+
+    ilock(vf->ip);
+    // 计算当前页面读取文件的偏移量，实验中p->vma[i].offset总是0
+    // 要按顺序读读取，例如内存页面A,B和文件块a,b
+    int offset=p->vmas[i].offset+PGROUNDDOWN(va-p->vmas[i].addr);
+    int readbytes=readi(vf->ip,0,(uint64)pa,offset,PGSIZE);
+    if (readbytes==0)
+    {
+      iunlock(vf->ip);
+      kfree(pa);
+      p->killed=1;
+      goto bad;
+    }
+    iunlock(vf->ip);
+    
+    if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)pa, pte_flags) != 0){
+      kfree(pa);
+      printf("usertrap:mappages error");
+      p->killed=1;
+    }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
 
+ bad:
   if(p->killed)
     exit(-1);
 

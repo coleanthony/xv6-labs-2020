@@ -484,3 +484,83 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_mmap(void){
+  uint64 addr;
+  int len,prot,flags,vfd,offset;
+  struct file* vfile;
+  uint64 err=0xffffffffffffffff;
+  struct proc *p=myproc();
+  if (argaddr(0,&addr)<0||argint(1,&len)<0||argint(2,&prot)<0||argint(3,&flags)<0||argfd(4,&vfd,&vfile)||argint(5,&offset)<0){
+    return err;
+  }
+  if (addr!=0||offset!=0||len<0){
+    return err;
+  }
+  if (p->sz+len>MAXVA){
+    return err;
+  }
+  if (!vfile->writable&&(prot&PROT_WRITE)!=0&&flags==MAP_SHARED){
+    return err;
+  }
+  for (int i = 0; i < NVMA; i++){
+    if (p->vmas[i].used==0){
+      p->vmas[i].used=1;
+      p->vmas[i].addr=p->sz;
+      p->vmas[i].len=len;
+      p->vmas[i].prot=prot;
+      p->vmas[i].flags=flags;
+      p->vmas[i].vfd=vfd;
+      p->vmas[i].vfile=vfile;
+      p->vmas[i].offset=offset;
+      filedup(vfile);
+
+      p->sz+=len;
+
+      return p->vmas[i].addr;
+    }
+  }
+  return err;
+}
+
+uint64
+sys_munmap(void){
+  uint64 addr;
+  int len;
+  if (argaddr(0,&addr)<0||argint(1,&len)<0)
+    return -1;
+
+  int i;
+  struct proc* p=myproc();
+  
+  for (i = 0; i < NVMA; i++){
+    if (p->vmas[i].used&&p->vmas[i].len>=len){
+      if (p->vmas[i].addr==addr){
+        p->vmas[i].addr+=len;
+        p->vmas[i].len-=len;
+        break;
+      }
+      if (addr+len==p->vmas[i].addr+p->vmas[i].len){
+        p->vmas[i].len-=len;
+        break;
+      }  
+    }
+  }
+  if (i==NVMA){
+    return -1;
+  }
+  
+  if (p->vmas[i].flags==MAP_SHARED&&(p->vmas[i].prot&PROT_WRITE)!=0){
+    filewrite(p->vmas[i].vfile,addr,len);
+  }
+
+  uvmunmap(p->pagetable, addr, len/PGSIZE, 1);
+  //如果munmap删除了先前mmap的所有页面，它应该减少相应struct file的引用计数
+  if (p->vmas[i].len==0){
+    fileclose(p->vmas[i].vfile);
+    p->vmas[i].used=0;
+  }
+  
+  return 0;
+}
