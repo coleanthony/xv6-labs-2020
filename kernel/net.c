@@ -62,6 +62,7 @@ mbuftrim(struct mbuf *m, unsigned int len)
 }
 
 // Allocates a packet buffer.
+// 分配一个空闲数据包缓冲区
 struct mbuf *
 mbufalloc(unsigned int headroom)
 {
@@ -69,6 +70,7 @@ mbufalloc(unsigned int headroom)
  
   if (headroom > MBUF_SIZE)
     return 0;
+  // 分配一个空闲物理页
   m = kalloc();
   if (m == 0)
     return 0;
